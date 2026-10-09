@@ -38,6 +38,20 @@ Aphrody Shell et Bun Shell sont des profils dynamiques livrés par fragment, san
 Le fragment est lu par toutes les éditions de Terminal installées, stable comprise.
 Le schéma de couleurs `Aphrody M3` est généré depuis les tokens M3 par la crate `aphrody-identity`, dans `C:\aphrody\tools\config\host\windows\terminal\aphrody-m3.wt-scheme.json`. `fragment.json` le référence par son nom. `deploy` joint au fragment installé les schémas référencés tels que ce fichier les définit, ce qui les rend visibles par toutes les éditions installées. Si le fichier est absent, et qu'aucun autre fragment ne déclare le schéma, la référence est omise, car un schéma inconnu provoque un avertissement au démarrage.
 
+## État au 2026-10-09
+
+- Base : `microsoft/terminal` `main` 6676c6f938f. `bun run setup` passe et est idempotent : 31 composants, 9,6 s à la seconde exécution. Les composants UWP ont été ajoutés à VS Build Tools 18.10 en 10,3 min.
+- Le build de `C:\terminal` échoue tant que le travail en cours sur Direct3D 12 n'est pas commité : `atlas.vcxproj` référence `BackendD3D12.cpp`, absent. Le HEAD commité est construit dans le worktree `C:\tmp\wtb`.
+- Restent à faire : le build complet, le deploy, la vérification des profils et les mesures de démarrage. Commandes :
+
+```sh
+cd C:\tmp\wtb && git checkout --detach aphrody && bun run build && bun run deploy
+bun run check:profiles "%LOCALAPPDATA%\Packages\WindowsTerminalDev_8wekyb3d8bbwe\LocalState\settings.json"
+bun run bench --runs 10 --label baseline
+```
+
+Un réglage n'entre dans `tools/aphrody/settings.overrides.json` (par exemple `disabledProfileSources` avec `Windows.Terminal.Wsl` ou `Windows.Terminal.SshHostGenerator`) que si `bun run bench --label <essai>` montre un gain sur la médiane.
+
 ## CI
 
 `.github/workflows/aphrody-build.yml` exécute `bun run setup` (l'image n'a pas les composants UWP de `.vsconfig`) puis `bun run build` sur `windows-2025` à chaque push sur `aphrody`, et publie le `.msix` et les journaux. Le workflow upstream `spelling2` (Spell checking) est désactivé sur ce dépôt. `addToProject` (issues) et `winget` (releases publiées) ne se déclenchent pas : le dépôt n'a ni issues ni releases.
