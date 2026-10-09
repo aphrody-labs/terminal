@@ -11,7 +11,16 @@ if ((await $`git status --porcelain --untracked-files=no`.text()).trim())
 const branch = (await $`git branch --show-current`.text()).trim();
 if (branch !== "aphrody") await $`git switch aphrody`;
 await $`git fetch upstream main`;
-await $`git fetch origin aphrody`.nothrow();
+// Other machines push to origin/aphrody: integrate them first so the force push below cannot drop their commits.
+if ((await $`git fetch origin aphrody`.nothrow()).exitCode === 0) {
+  if ((await $`git merge-base --is-ancestor origin/aphrody HEAD`.nothrow()).exitCode !== 0) {
+    const r = await $`git rebase origin/aphrody`.nothrow();
+    if (r.exitCode !== 0) {
+      await $`git rebase --abort`.nothrow();
+      throw new Error("conflit avec origin/aphrody : résoudre à la main (git pull --rebase origin aphrody)");
+    }
+  }
+}
 const before = (await $`git rev-parse HEAD`.text()).trim();
 const upstream = (await $`git rev-parse upstream/main`.text()).trim();
 const behind = Number((await $`git rev-list --count HEAD..upstream/main`.text()).trim());
