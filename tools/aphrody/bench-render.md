@@ -15,7 +15,7 @@ Fait :
 
 Reste à faire, dans l'ordre :
 
-1. Build complet vert (lancé, non terminé à l'arrêt ; journal dans `obj/aphrody/build-x64-Release.log`). Vérifier d'abord que `procs msbuild` ne montre aucun MSBuild sur `C:\terminal` :
+1. Build complet Release x64 vert (`bun run build`, 14,9 min, `CascadiaPackage_0.0.1.0_x64.msix` produit, sans erreur ; journal `obj/aphrody/build-x64-Release.log`). À relancer après tout changement. Vérifier d'abord que `procs msbuild` ne montre aucun MSBuild sur `C:\terminal` :
    `cd C:\terminal && bun run build`
 2. Tests unitaires. Les noms de cibles de la solution sont à vérifier dans `OpenConsole.slnx`, a priori `Terminal\Tests\SettingsModel_UnitTests` et `Terminal\Tests\Control_UnitTests`. Ensuite :
    `packages\Microsoft.Taef.*\build\Binaries\x64\te.exe bin\x64\Release\UnitTests_SettingsModel\SettingsModel.Unit.Tests.dll /name:*SerializationTests::GraphicsAPI`
