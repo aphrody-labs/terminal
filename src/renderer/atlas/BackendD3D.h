@@ -215,7 +215,11 @@ namespace Microsoft::Console::Render::Atlas
             }
         };
 
-    private:
+    protected:
+        // BackendD3D12 shares the CPU-side pipeline of this class (glyph atlas, quad generation, cursor,
+        // gridlines, bitmaps) and overrides the GPU-facing virtual methods below. It skips the D3D11 setup.
+        BackendD3D() = default;
+
         struct CursorRect
         {
             i16x2 position;
@@ -235,18 +239,18 @@ namespace Microsoft::Console::Render::Atlas
         void _debugUpdateShaders(const RenderingPayload& p) noexcept;
         void _debugShowDirty(const RenderingPayload& p);
         void _debugDumpRenderTarget(const RenderingPayload& p);
-        void _d2dBeginDrawing() noexcept;
-        void _d2dEndDrawing();
+        virtual void _d2dBeginDrawing();
+        virtual void _d2dEndDrawing();
         ATLAS_ATTR_COLD void _resetGlyphAtlas(const RenderingPayload& p, u32 minWidth, u32 minHeight);
-        ATLAS_ATTR_COLD void _resizeGlyphAtlas(const RenderingPayload& p, u16 u, u16 v);
+        ATLAS_ATTR_COLD virtual void _resizeGlyphAtlas(const RenderingPayload& p, u16 u, u16 v);
         static bool _checkMacTypeVersion(const RenderingPayload& p);
         QuadInstance& _getLastQuad() noexcept;
         QuadInstance& _appendQuad();
         ATLAS_ATTR_COLD void _bumpInstancesSize();
-        void _flushQuads(const RenderingPayload& p);
+        virtual void _flushQuads(const RenderingPayload& p);
         ATLAS_ATTR_COLD void _recreateInstanceBuffers(const RenderingPayload& p);
         void _drawBackground(const RenderingPayload& p);
-        void _uploadBackgroundBitmap(const RenderingPayload& p);
+        virtual void _uploadBackgroundBitmap(const RenderingPayload& p);
         void _drawText(RenderingPayload& p);
         ATLAS_ATTR_COLD void _drawTextOverlapSplit(const RenderingPayload& p, u16 y);
         [[nodiscard]] ATLAS_ATTR_COLD AtlasGlyphEntry* _drawGlyph(const RenderingPayload& p, const ShapedRow& row, AtlasFontFaceEntry& fontFaceEntry, u32 glyphIndex);

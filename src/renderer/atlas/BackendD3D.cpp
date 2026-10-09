@@ -731,7 +731,7 @@ void BackendD3D::_debugUpdateShaders(const RenderingPayload& p) noexcept
 #endif
 }
 
-void BackendD3D::_d2dBeginDrawing() noexcept
+void BackendD3D::_d2dBeginDrawing()
 {
     if (!_d2dBeganDrawing)
     {
