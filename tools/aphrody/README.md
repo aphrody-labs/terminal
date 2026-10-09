@@ -41,11 +41,11 @@ Le schéma de couleurs `Aphrody M3` est généré depuis les tokens M3 par la cr
 ## État au 2026-10-09
 
 - Base : `microsoft/terminal` `main` 6676c6f938f. `bun run setup` passe et est idempotent : 31 composants, 9,6 s à la seconde exécution. Les composants UWP ont été ajoutés à VS Build Tools 18.10 en 10,3 min.
-- Le build de `C:\terminal` échoue tant que le travail en cours sur Direct3D 12 n'est pas commité : `atlas.vcxproj` référence `BackendD3D12.cpp`, absent. Le HEAD commité est construit dans le worktree `C:\tmp\wtb`.
-- Restent à faire : le build complet, le deploy, la vérification des profils et les mesures de démarrage. Commandes :
+- Le build de `C:\terminal` échoue tant que le travail en cours sur Direct3D 12 n'est pas commité : `atlas.vcxproj` référence `BackendD3D12.cpp`, absent. Le HEAD commité (9566761aa) a été construit dans le worktree `C:\tmp\wtb` : Release x64 OK en 14,1 min avec 9 compilations parallèles.
+- Restent à faire : le deploy, la vérification des profils et les mesures de démarrage. Commandes :
 
 ```sh
-cd C:\tmp\wtb && git checkout --detach aphrody && bun run build && bun run deploy
+cd C:\tmp\wtb && bun run deploy
 bun run check:profiles "%LOCALAPPDATA%\Packages\WindowsTerminalDev_8wekyb3d8bbwe\LocalState\settings.json"
 bun run bench --runs 10 --label baseline
 ```
