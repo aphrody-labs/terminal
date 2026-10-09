@@ -47,6 +47,8 @@ namespace winrt::Microsoft::Terminal::Control::implementation
             return GA::Direct2D;
         case GraphicsAPI::Direct3D11:
             return GA::Direct3D11;
+        case GraphicsAPI::Direct3D12:
+            return GA::Direct3D12;
         default:
             return GA::Automatic;
         }

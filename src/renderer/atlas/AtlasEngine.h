@@ -5,6 +5,7 @@
 
 #include <dwrite_3.h>
 #include <d3d11_2.h>
+#include <d3d12.h>
 #include <dxgi1_3.h>
 
 #include "common.h"

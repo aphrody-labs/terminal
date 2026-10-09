@@ -22,10 +22,13 @@
 
 #include <d2d1_3.h>
 #include <d3d11_2.h>
+#include <d3d11on12.h>
+#include <d3d12.h>
+#include <d3d12shader.h>
 #include <d3dcompiler.h>
 #include <dcomp.h>
 #include <dwrite_3.h>
-#include <dxgi1_3.h>
+#include <dxgi1_4.h>
 #include <dxgidebug.h>
 #include <VersionHelpers.h>
 #include <wincodec.h>

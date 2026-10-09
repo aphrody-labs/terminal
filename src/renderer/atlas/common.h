@@ -320,6 +320,7 @@ namespace Microsoft::Console::Render::Atlas
         Automatic,
         Direct2D,
         Direct3D11,
+        Direct3D12,
     };
 
     struct TargetSettings
@@ -529,6 +530,12 @@ namespace Microsoft::Console::Render::Atlas
         } swapChain;
         wil::com_ptr<ID3D11Device2> device;
         wil::com_ptr<ID3D11DeviceContext2> deviceContext;
+        // Only set while BackendD3D12 is in use, in which case device/deviceContext above are null.
+        struct
+        {
+            wil::com_ptr<ID3D12Device> device;
+            wil::com_ptr<ID3D12CommandQueue> queue;
+        } d3d12;
 
         //// Parameters which change seldom.
         GenerationalSettings s;
