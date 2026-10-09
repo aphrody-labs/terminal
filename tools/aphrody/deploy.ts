@@ -7,6 +7,7 @@ import {
   FRAGMENT_DIR,
   LAYOUT_DIR,
   LOCALAPPDATA,
+  M3_SCHEMES,
   OUT,
   PACKAGE_NAME,
   ROOT,
@@ -78,15 +79,13 @@ async function register(): Promise<AppxPackage> {
   return pkg;
 }
 
-/** Schemes declared by any installed fragment or by the given settings files. */
-async function knownSchemes(settingsFiles: string[]): Promise<Set<string>> {
+/** Schemes declared by the other installed fragments. */
+async function fragmentSchemes(exclude: string): Promise<Set<string>> {
   const names = new Set<string>();
   const fragments = join(LOCALAPPDATA, "Microsoft", "Windows Terminal", "Fragments");
-  const files = existsSync(fragments)
-    ? [...new Bun.Glob("**/*.json").scanSync({ cwd: fragments, absolute: true })]
-    : [];
-  for (const file of [...files, ...settingsFiles]) {
-    if (!existsSync(file)) continue;
+  if (!existsSync(fragments)) return names;
+  for (const file of new Bun.Glob("**/*.json").scanSync({ cwd: fragments, absolute: true })) {
+    if (file.toLowerCase() === exclude.toLowerCase()) continue;
     try {
       const json = (await Bun.file(file).json()) as { schemes?: { name: string }[] };
       for (const s of json.schemes ?? []) names.add(s.name);
@@ -116,18 +115,25 @@ async function applySettings(pkg: AppxPackage): Promise<string> {
   return target;
 }
 
-async function installFragment(settingsFile: string): Promise<void> {
+async function installFragment(): Promise<void> {
   const source = (await Bun.file(join(import.meta.dir, "fragment.json")).json()) as {
     profiles: Record<string, unknown>[];
+    schemes?: { name: string }[];
   };
-  const scheme = "Aphrody M3";
-  const schemes = await knownSchemes([settingsFile, CANONICAL_SETTINGS]);
-  // An unknown colorScheme raises a settings warning in every Terminal that reads the shared fragments.
-  if (!schemes.has(scheme)) {
-    for (const p of source.profiles) delete p.colorScheme;
-    log("fragment", `schéma « ${scheme} » pas encore installé : référence omise jusqu'au prochain deploy`);
-  }
   const target = join(ensureDir(FRAGMENT_DIR), "aphrody-terminal.json");
+  const wanted = new Set(source.profiles.map(p => p.colorScheme).filter((s): s is string => typeof s === "string"));
+  // Fragments are read by every installed Terminal edition, so the generated M3 schemes ship with the profiles.
+  if (existsSync(M3_SCHEMES)) {
+    source.schemes = ((await Bun.file(M3_SCHEMES).json()) as { name: string }[]).filter(s => wanted.has(s.name));
+  }
+  const known = await fragmentSchemes(target);
+  for (const s of source.schemes ?? []) known.add(s.name);
+  for (const name of wanted) {
+    if (known.has(name)) continue;
+    // An unknown colorScheme raises a settings warning at every Terminal startup.
+    for (const p of source.profiles) if (p.colorScheme === name) delete p.colorScheme;
+    log("fragment", `schéma « ${name} » absent de ${M3_SCHEMES} : référence omise`);
+  }
   const content = JSON.stringify(source, null, 2) + "\n";
   if (existsSync(target) && (await Bun.file(target).text()) === content) {
     log("fragment", `${target} à jour`);
@@ -172,6 +178,6 @@ async function launchCheck(pkg: AppxPackage): Promise<void> {
 ensureDir(OUT);
 const pkg = await register();
 log("deploy", `${pkg.Name} ${pkg.Version} (${pkg.PackageFamilyName})`);
-const settings = await applySettings(pkg);
-await installFragment(settings);
+await applySettings(pkg);
+await installFragment();
 if (!process.argv.includes("--no-launch")) await launchCheck(pkg);

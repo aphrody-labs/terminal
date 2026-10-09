@@ -1,7 +1,7 @@
 // bun run build [Debug|Release] [x64|ARM64] : paquet Terminal (CascadiaPackage) via msbuild,
 // même chemin qu'Invoke-OpenConsoleBuild (tools/OpenConsole.psm1) dans un environnement VsDevCmd.
 import { join } from "node:path";
-import { OUT, ensureDir, log, runLogged, vsDevEnv, vsInstance } from "./lib.ts";
+import { OUT, ensureDir, log, msbuildExe, runLogged, vsDevEnv, vsInstance } from "./lib.ts";
 
 const configuration = process.argv.find(a => /^(debug|release)$/i.test(a)) ?? "Release";
 const platform = process.argv.find(a => /^(x64|arm64)$/i.test(a)) ?? "x64";
@@ -14,7 +14,7 @@ ensureDir(OUT);
 
 const logFile = join(OUT, `build-${platform}-${configuration}.log`);
 const args = [
-  "msbuild.exe",
+  msbuildExe(vs),
   "OpenConsole.slnx",
   `/p:Configuration=${configuration}`,
   `/p:Platform=${platform}`,

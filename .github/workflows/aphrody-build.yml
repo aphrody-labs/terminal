@@ -22,8 +22,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: aphrody-labs/bun/.github/actions/setup-bun@main
+      # L'image ne porte pas les composants UWP de .vsconfig : setup les ajoute (le runner est administrateur).
       - name: setup
-        run: bun run setup --no-vs-install
+        run: bun run setup
       - name: build
         run: bun run build
       - uses: actions/upload-artifact@v4

@@ -11,6 +11,7 @@ import {
   ensureDir,
   isAdmin,
   log,
+  msbuildExe,
   runLogged,
   vsDevEnv,
   vsInstance,
@@ -169,7 +170,7 @@ async function restore(vs: VsInstance): Promise<void> {
   const logFile = join(OUT, "restore.log");
   const code = await runLogged(
     [
-      "msbuild.exe",
+      msbuildExe(vs),
       "OpenConsole.slnx",
       "/t:Restore",
       "/p:Configuration=Release",
