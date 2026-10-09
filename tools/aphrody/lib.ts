@@ -80,10 +80,18 @@ export async function vsDevEnv(vs: VsInstance): Promise<Record<string, string>> 
   );
   const text = await proc.stdout.text();
   if ((await proc.exited) !== 0) throw new Error(`VsDevCmd.bat a échoué (${devcmd})`);
+  // GitHub runners hand cmd both `Path` and `PATH`; MSBuild's ToolTask throws on case-insensitive duplicates.
+  // VsDevCmd prepends to the one it updates, so the longest value is kept.
   const env: Record<string, string> = {};
+  const keyOf = new Map<string, string>();
   for (const line of text.split(/\r?\n/)) {
     const eq = line.indexOf("=");
-    if (eq > 0) env[line.slice(0, eq)] = line.slice(eq + 1);
+    if (eq <= 0) continue;
+    const name = line.slice(0, eq);
+    const value = line.slice(eq + 1);
+    const key = keyOf.get(name.toUpperCase()) ?? name;
+    keyOf.set(name.toUpperCase(), key);
+    if (!(key in env) || value.length > env[key].length) env[key] = value;
   }
   const vcpkg = join(vs.installationPath, "VC", "vcpkg");
   if (!env.VCPKG_ROOT && existsSync(join(vcpkg, "vcpkg.exe"))) env.VCPKG_ROOT = vcpkg;
