@@ -70,123 +70,8 @@ async function requiredComponents(vs: VsInstance): Promise<string[]> {
   return [...out].sort();
 }
 
-async function setupVisualStudio(): Promise<VsInstance> {
-  let vs = await vsInstance();
-  if (!vs) {
-    const cmd = `winget install --id Microsoft.VisualStudio.BuildTools --override "--passive --wait --config ${join(ROOT, ".vsconfig")}"`;
-    throw new Error(`Visual Studio introuvable. Installer : ${cmd}`);
-  }
-  log("vs", `${vs.displayName} ${vs.installationVersion} (${vs.installationPath})`);
-
-  const required = await requiredComponents(vs);
-  const installed = new Set(vs.packages?.map(p => p.id));
-  const missing = required.filter(id => !installed.has(id));
-  if (missing.length === 0) {
-    log("vs", `${required.length} composants requis déjà installés`);
-    return vs;
-  }
-
-  log("vs", `composants manquants (${missing.length}) : ${missing.join(", ")}`);
-  const config = join(OUT, "vsconfig.json");
-  await Bun.write(config, JSON.stringify({ version: "1.0", components: required, extensions: [] }, null, 2));
-  // setup.exe is the blocking installer CLI behind vs_installer.exe; it refuses to run with its own directory as cwd.
-  const installer = [
-    join(VS_INSTALLER_DIR, "setup.exe"),
-    "modify",
-    "--installPath",
-    vs.installationPath,
-    "--config",
-    config,
-    "--quiet",
-    "--norestart",
-  ];
-  let cmd = installer;
-  if (process.argv.includes("--no-vs-install")) {
-    log("vs", "--no-vs-install : composants non installés, le build peut échouer");
-    return vs;
-  }
-  if (!(await isAdmin())) {
-    const elev = elevator();
-    if (!elev) {
-      log(
-        "vs",
-        `élévation requise, commande à lancer en administrateur :\n  ${installer.map(a => (a.includes(" ") ? `"${a}"` : a)).join(" ")}`,
-      );
-      return vs;
-    }
-    cmd = [...elev, ...installer];
-  }
-  // The installer silently cancels (exit 0) while any MSBuild process is alive.
-  if ((await // bun run setup : Visual Studio (composants de .vsconfig), Windows SDK, .NET, vcpkg, restauration NuGet.
-// Idempotent : chaque étape vérifie l'état avant d'agir.
-import { $ } from "bun";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-import {
-  OUT,
-  ROOT,
-  VS_INSTALLER_DIR,
-  elevator,
-  ensureDir,
-  isAdmin,
-  log,
-  runLogged,
-  vsDevEnv,
-  vsInstance,
-  windowsTargetPlatformVersion,
-  type VsInstance,
-} from "./lib.ts";
-
-// Composants IDE de .vsconfig et leurs équivalents dans le produit Build Tools.
-const BUILD_TOOLS_EQUIVALENTS: Record<string, string[]> = {
-  "Microsoft.VisualStudio.Workload.NativeDesktop": ["Microsoft.VisualStudio.Workload.VCTools"],
-  "Microsoft.VisualStudio.Workload.ManagedDesktop": ["Microsoft.VisualStudio.Workload.ManagedDesktopBuildTools"],
-  "Microsoft.VisualStudio.Workload.Universal": ["Microsoft.VisualStudio.Workload.UniversalBuildTools"],
-  "Microsoft.VisualStudio.ComponentGroup.UWP.Support": ["Microsoft.VisualStudio.ComponentGroup.UWP.BuildTools"],
-  "Microsoft.VisualStudio.ComponentGroup.UWP.VC": ["Microsoft.VisualStudio.ComponentGroup.UWP.VC.BuildTools"],
-  "Microsoft.VisualStudio.ComponentGroup.WindowsAppDevelopment.VC": [
-    "Microsoft.VisualStudio.ComponentGroup.WindowsAppDevelopment.VC.BuildTools",
-  ],
-  "Microsoft.VisualStudio.Component.NuGet": ["Microsoft.VisualStudio.Component.NuGet.BuildTools"],
-  "Microsoft.Component.ClickOnce": ["Microsoft.Component.ClickOnce.MSBuild"],
-};
-
-const COMPONENT_ID =
-  /^Microsoft\.(VisualStudio\.(Component|ComponentGroup|Workload)|Component|ComponentGroup|Net|NetCore)\./;
-
-/** Ids selectable in this product (closure of the product package over the channel catalog). */
-async function productComponents(vs: VsInstance): Promise<Set<string> | undefined> {
-  const catalog = `C:\\ProgramData\\Microsoft\\VisualStudio\\Packages\\_Instances\\${vs.instanceId}\\catalog.json`;
-  if (!existsSync(catalog)) return undefined;
-  const { packages } = (await Bun.file(catalog).json()) as {
-    packages: { id: string; dependencies?: Record<string, unknown> }[];
-  };
-  const byId = new Map<string, (typeof packages)[number]>();
-  for (const p of packages) if (!byId.has(p.id)) byId.set(p.id, p);
-  const seen = new Set<string>();
-  const queue = [vs.productId];
-  while (queue.length) {
-    const p = byId.get(queue.pop()!);
-    for (const dep of Object.keys(p?.dependencies ?? {})) {
-      if (seen.has(dep) || !COMPONENT_ID.test(dep)) continue;
-      seen.add(dep);
-      queue.push(dep);
-    }
-  }
-  return seen;
-}
-
-async function requiredComponents(vs: VsInstance): Promise<string[]> {
-  const wanted = ((await Bun.file(join(ROOT, ".vsconfig")).json()) as { components: string[] }).components;
-  if (!vs.productId.endsWith(".BuildTools")) return wanted;
-  const available = await productComponents(vs);
-  const out = new Set<string>();
-  for (const id of wanted) {
-    for (const candidate of BUILD_TOOLS_EQUIVALENTS[id] ?? [id]) {
-      if (!available || available.has(candidate)) out.add(candidate);
-    }
-  }
-  return [...out].sort();
+async function msbuildRunning(): Promise<boolean> {
+  return (await $`tasklist /FI ${"IMAGENAME eq MSBuild.exe"} /NH`.quiet().nothrow().text()).includes("MSBuild.exe");
 }
 
 async function setupVisualStudio(): Promise<VsInstance> {
@@ -206,6 +91,10 @@ async function setupVisualStudio(): Promise<VsInstance> {
   }
 
   log("vs", `composants manquants (${missing.length}) : ${missing.join(", ")}`);
+  if (process.argv.includes("--no-vs-install")) {
+    log("vs", "--no-vs-install : composants non installés, le build peut échouer");
+    return vs;
+  }
   const config = join(OUT, "vsconfig.json");
   await Bun.write(config, JSON.stringify({ version: "1.0", components: required, extensions: [] }, null, 2));
   // setup.exe is the blocking installer CLI behind vs_installer.exe; it refuses to run with its own directory as cwd.
@@ -220,24 +109,17 @@ async function setupVisualStudio(): Promise<VsInstance> {
     "--norestart",
   ];
   let cmd = installer;
-  if (process.argv.includes("--no-vs-install")) {
-    log("vs", "--no-vs-install : composants non installés, le build peut échouer");
-    return vs;
-  }
   if (!(await isAdmin())) {
     const elev = elevator();
     if (!elev) {
-      log(
-        "vs",
-        `élévation requise, commande à lancer en administrateur :\n  ${installer.map(a => (a.includes(" ") ? `"${a}"` : a)).join(" ")}`,
-      );
+      const line = installer.map(a => (a.includes(" ") ? `"${a}"` : a)).join(" ");
+      log("vs", `élévation requise, commande à lancer en administrateur :\n  ${line}`);
       return vs;
     }
     cmd = [...elev, ...installer];
   }
-tasklist /FI "IMAGENAME eq MSBuild.exe" /NH`.quiet().text()).includes("MSBuild.exe")) {
-    throw new Error("MSBuild en cours d'exécution : l'installeur VS refuserait de modifier l'instance, relancer après le build");
-  }
+  // With --quiet the installer cancels itself (exit 0) while any MSBuild process is alive.
+  if (await msbuildRunning()) throw new Error("MSBuild en cours d'exécution : relancer `bun run setup` après le build");
   const started = performance.now();
   const code = await runLogged(cmd, { cwd: ROOT, logFile: join(OUT, "vs-installer.log") });
   log("vs", `installeur terminé (code ${code}) en ${((performance.now() - started) / 60000).toFixed(1)} min`);
@@ -249,7 +131,7 @@ tasklist /FI "IMAGENAME eq MSBuild.exe" /NH`.quiet().text()).includes("MSBuild.e
   const after = new Set(vs.packages?.map(p => p.id));
   const stillMissing = required.filter(id => !after.has(id));
   if (stillMissing.length) {
-    // The installer can exit 0 after a package failure (e.g. MSI 1603 on a purged C:\Windows\Installer cache).
+    // The installer can also exit 0 after a package failure (e.g. MSI 1714 on a purged C:\Windows\Installer cache).
     const errors = [...new Bun.Glob("dd_setup_*_errors.log").scanSync({ cwd: process.env.TEMP ?? "", absolute: true })]
       .sort()
       .at(-1);
@@ -277,17 +159,14 @@ async function restore(vs: VsInstance): Promise<void> {
   if (!env.VCPKG_ROOT) throw new Error("vcpkg absent (composant Microsoft.VisualStudio.Component.Vcpkg)");
   log("vcpkg", env.VCPKG_ROOT);
   const nuget = join(ROOT, "dep", "nuget", "nuget.exe");
-  const logFile = join(OUT, "restore.log");
   for (const config of [join("dep", "nuget", "packages.config"), join("build", "packages.config")]) {
     const code = await runLogged(
       [nuget, "restore", config, "-PackagesDirectory", "packages", "-NonInteractive", "-Verbosity", "quiet"],
-      {
-        env,
-        logFile: join(OUT, `restore-${config.split(/[\\/]/)[0]}.log`),
-      },
+      { env, logFile: join(OUT, `restore-${config.split(/[\\/]/)[0]}.log`) },
     );
     if (code !== 0) throw new Error(`nuget restore ${config} a échoué (code ${code})`);
   }
+  const logFile = join(OUT, "restore.log");
   const code = await runLogged(
     [
       "msbuild.exe",
@@ -296,6 +175,7 @@ async function restore(vs: VsInstance): Promise<void> {
       "/p:Configuration=Release",
       "/p:Platform=x64",
       "/m",
+      "/nr:false",
       "/nologo",
       "/v:minimal",
     ],
