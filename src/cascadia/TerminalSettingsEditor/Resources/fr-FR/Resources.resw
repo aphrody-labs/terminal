@@ -305,7 +305,7 @@
     <comment>This text is shown next to a list of choices.</comment>
   </data>
   <data name="Globals_GraphicsAPI.Description" xml:space="preserve">
-    <value>Direct3D 11 offre une expérience plus performante et riche en fonctionnalités, tandis que Direct2D est plus stable. L’option par défaut « Automatique » sélectionne l’API qui correspond le mieux à votre matériel graphique. Si vous rencontrez des problèmes importants, envisagez d’utiliser Direct2D.</value>
+    <value>Direct3D 11 offre une expérience plus performante et riche en fonctionnalités, tandis que Direct2D est plus stable. Direct3D 12 offre le même rendu que Direct3D 11 et prend en charge en plus les nuanceurs personnalisés à plusieurs passes. L’option par défaut « Automatique » sélectionne l’API qui correspond le mieux à votre matériel graphique. Si vous rencontrez des problèmes importants, envisagez d’utiliser Direct2D.</value>
   </data>
   <data name="Globals_GraphicsAPI_Automatic.Text" xml:space="preserve">
     <value>Automatique</value>
@@ -316,6 +316,9 @@
   </data>
   <data name="Globals_GraphicsAPI_Direct3d11.Text" xml:space="preserve">
     <value>Direct3D 11</value>
+  </data>
+  <data name="Globals_GraphicsAPI_Direct3d12.Text" xml:space="preserve">
+    <value>Direct3D 12</value>
   </data>
   <data name="Globals_DisablePartialInvalidation.Header" xml:space="preserve">
     <value>Désactiver l’invalidation partielle de la chaîne d’échange</value>

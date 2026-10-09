@@ -66,12 +66,9 @@ void WIC::SaveTextureToPNG(ID3D11DeviceContext* deviceContext, ID3D11Resource* s
     THROW_IF_FAILED(encoder->Commit());
 }
 
-void WIC::LoadTextureFromFile(ID3D11Device* device, const wchar_t* fileName, ID3D11Texture2D** out_texture, ID3D11ShaderResourceView** out_textureView)
+Image WIC::LoadImageFromFile(const wchar_t* fileName)
 {
-    __assume(device != nullptr);
     __assume(fileName != nullptr);
-    __assume(out_texture != nullptr);
-    __assume(out_textureView != nullptr);
 
     const auto wicFactory = getWicFactory();
 
@@ -124,12 +121,27 @@ void WIC::LoadTextureFromFile(ID3D11Device* device, const wchar_t* fileName, ID3
     const uint64_t bytes = stride * static_cast<uint64_t>(tgtHeight);
     THROW_HR_IF(ERROR_ARITHMETIC_OVERFLOW, bytes > UINT32_MAX);
 
-    Buffer<BYTE, 32> buffer{ gsl::narrow_cast<size_t>(bytes) };
-    THROW_IF_FAILED(converter->CopyPixels(nullptr, gsl::narrow_cast<UINT>(stride), gsl::narrow_cast<UINT>(bytes), buffer.data()));
+    Image image{
+        .pixels = Buffer<BYTE, 32>{ gsl::narrow_cast<size_t>(bytes) },
+        .width = tgtWidth,
+        .height = tgtHeight,
+        .stride = gsl::narrow_cast<u32>(stride),
+    };
+    THROW_IF_FAILED(converter->CopyPixels(nullptr, image.stride, gsl::narrow_cast<UINT>(bytes), image.pixels.data()));
+    return image;
+}
+
+void WIC::LoadTextureFromFile(ID3D11Device* device, const wchar_t* fileName, ID3D11Texture2D** out_texture, ID3D11ShaderResourceView** out_textureView)
+{
+    __assume(device != nullptr);
+    __assume(out_texture != nullptr);
+    __assume(out_textureView != nullptr);
+
+    const auto image = LoadImageFromFile(fileName);
 
     const D3D11_TEXTURE2D_DESC desc = {
-        .Width = tgtWidth,
-        .Height = tgtHeight,
+        .Width = image.width,
+        .Height = image.height,
         .MipLevels = 1,
         .ArraySize = 1,
         .Format = DXGI_FORMAT_B8G8R8A8_UNORM,
@@ -138,9 +150,9 @@ void WIC::LoadTextureFromFile(ID3D11Device* device, const wchar_t* fileName, ID3
         .BindFlags = D3D11_BIND_SHADER_RESOURCE,
     };
     const D3D11_SUBRESOURCE_DATA initData = {
-        .pSysMem = buffer.data(),
-        .SysMemPitch = gsl::narrow_cast<UINT>(stride),
-        .SysMemSlicePitch = gsl::narrow_cast<UINT>(bytes),
+        .pSysMem = image.pixels.data(),
+        .SysMemPitch = image.stride,
+        .SysMemSlicePitch = gsl::narrow_cast<UINT>(image.pixels.size()),
     };
     wil::com_ptr<ID3D11Texture2D> texture;
     THROW_IF_FAILED(device->CreateTexture2D(&desc, &initData, texture.addressof()));

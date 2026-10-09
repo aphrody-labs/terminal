@@ -32,6 +32,7 @@ SOURCES = \
     Backend.cpp \
     BackendD2D.cpp \
     BackendD3D.cpp \
+    BackendD3D12.cpp \
     BuiltinGlyphs.cpp \
     dwrite_helpers.cpp \
     DWriteTextAnalysis.cpp \
@@ -44,3 +45,7 @@ NTTARGETFILE0 = \
     $(OBJ_PATH)\$(O)\custom_shader_ps.h \
     $(OBJ_PATH)\$(O)\shader_vs.h \
     $(OBJ_PATH)\$(O)\shader_ps.h \
+    $(OBJ_PATH)\$(O)\custom_shader_vs_d3d12.h \
+    $(OBJ_PATH)\$(O)\custom_shader_ps_d3d12.h \
+    $(OBJ_PATH)\$(O)\shader_vs_d3d12.h \
+    $(OBJ_PATH)\$(O)\shader_ps_d3d12.h \

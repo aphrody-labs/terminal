@@ -37,6 +37,7 @@ namespace SettingsModelUnitTests
         TEST_CLASS(SerializationTests);
 
         TEST_METHOD(GlobalSettings);
+        TEST_METHOD(GraphicsAPI);
         TEST_METHOD(Profile);
         TEST_METHOD(ColorScheme);
         TEST_METHOD(Actions);
@@ -148,6 +149,31 @@ namespace SettingsModelUnitTests
 
         RoundtripTest<implementation::GlobalAppSettings>(globalsString);
         RoundtripTest<implementation::GlobalAppSettings>(smallGlobalsString);
+    }
+
+    void SerializationTests::GraphicsAPI()
+    {
+        static constexpr std::pair<std::string_view, winrt::Microsoft::Terminal::Control::GraphicsAPI> cases[]{
+            { R"({ "rendering.graphicsAPI": "automatic", "actions": [], "keybindings": [] })", winrt::Microsoft::Terminal::Control::GraphicsAPI::Automatic },
+            { R"({ "rendering.graphicsAPI": "direct2d", "actions": [], "keybindings": [] })", winrt::Microsoft::Terminal::Control::GraphicsAPI::Direct2D },
+            { R"({ "rendering.graphicsAPI": "direct3d11", "actions": [], "keybindings": [] })", winrt::Microsoft::Terminal::Control::GraphicsAPI::Direct3D11 },
+            { R"({ "rendering.graphicsAPI": "direct3d12", "actions": [], "keybindings": [] })", winrt::Microsoft::Terminal::Control::GraphicsAPI::Direct3D12 },
+        };
+
+        for (const auto& [jsonString, expected] : cases)
+        {
+            RoundtripTest<implementation::GlobalAppSettings>(jsonString);
+
+            const auto settings = implementation::GlobalAppSettings::FromJson(VerifyParseSucceeded(jsonString));
+            VERIFY_IS_TRUE(settings->HasGraphicsAPI());
+            VERIFY_ARE_EQUAL(expected, settings->GraphicsAPI());
+        }
+
+        // Setting the value from code (Settings UI) writes the JSON name back out.
+        const auto settings = implementation::GlobalAppSettings::FromJson(VerifyParseSucceeded(R"({ "actions": [], "keybindings": [] })"));
+        settings->GraphicsAPI(winrt::Microsoft::Terminal::Control::GraphicsAPI::Direct3D12);
+        const auto result = settings->ToJson();
+        VERIFY_ARE_EQUAL("direct3d12", result["rendering.graphicsAPI"].asString());
     }
 
     void SerializationTests::Profile()

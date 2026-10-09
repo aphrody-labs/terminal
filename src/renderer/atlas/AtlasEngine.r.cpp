@@ -6,6 +6,7 @@
 
 #include "BackendD2D.h"
 #include "BackendD3D.h"
+#include "BackendD3D12.h"
 
 // #### NOTE ####
 // If you see any code in here that contains "_api." you might be seeing a race condition.
@@ -173,8 +174,30 @@ void AtlasEngine::_recreateBackend()
     // D3D11 defers the destruction of objects and only one swap chain can be associated with a
     // HWND, IWindow, or composition surface at a time. --> Destroy it while we still have the old device.
     _destroySwapChain();
+    _p.d3d12 = {};
 
     auto graphicsAPI = _p.s->target->graphicsAPI;
+
+    if (graphicsAPI == GraphicsAPI::Direct3D12)
+    {
+        try
+        {
+            BackendD3D12::CreateDevice(_p);
+            _p.device = nullptr;
+            _p.deviceContext = nullptr;
+            _b = std::make_unique<BackendD3D12>(_p);
+            _p.MarkAllAsDirty();
+            return;
+        }
+        catch (...)
+        {
+            // Direct3D 12 is unavailable (or broken) on this adapter. Fall back to Direct3D 11.
+            LOG_CAUGHT_EXCEPTION();
+            _b.reset();
+            _p.d3d12 = {};
+            graphicsAPI = GraphicsAPI::Direct3D11;
+        }
+    }
 
     auto deviceFlags =
         D3D11_CREATE_DEVICE_SINGLETHREADED
@@ -358,11 +381,13 @@ bool AtlasEngine::_createSwapChain(HANDLE shutdownEvent)
 
     wil::com_ptr<IDXGISwapChain1> swapChain1;
     wil::unique_handle handle;
+    // Direct3D 12 swap chains are created on the command queue instead of the device.
+    IUnknown* const swapChainDevice = _p.d3d12.queue ? static_cast<IUnknown*>(_p.d3d12.queue.get()) : static_cast<IUnknown*>(_p.device.get());
 
     if (_p.s->target->hwnd)
     {
         desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
-        THROW_IF_FAILED(_p.dxgi.factory->CreateSwapChainForHwnd(_p.device.get(), _p.s->target->hwnd, &desc, nullptr, nullptr, swapChain1.addressof()));
+        THROW_IF_FAILED(_p.dxgi.factory->CreateSwapChainForHwnd(swapChainDevice, _p.s->target->hwnd, &desc, nullptr, nullptr, swapChain1.addressof()));
     }
     else
     {
@@ -373,7 +398,7 @@ bool AtlasEngine::_createSwapChain(HANDLE shutdownEvent)
         // As per: https://docs.microsoft.com/en-us/windows/win32/api/dcomp/nf-dcomp-dcompositioncreatesurfacehandle
         static constexpr DWORD COMPOSITIONSURFACE_ALL_ACCESS = 0x0003L;
         THROW_IF_FAILED(DCompositionCreateSurfaceHandle(COMPOSITIONSURFACE_ALL_ACCESS, nullptr, handle.addressof()));
-        THROW_IF_FAILED(_p.dxgi.factory.query<IDXGIFactoryMedia>()->CreateSwapChainForCompositionSurfaceHandle(_p.device.get(), handle.get(), &desc, nullptr, swapChain1.addressof()));
+        THROW_IF_FAILED(_p.dxgi.factory.query<IDXGIFactoryMedia>()->CreateSwapChainForCompositionSurfaceHandle(swapChainDevice, handle.get(), &desc, nullptr, swapChain1.addressof()));
     }
 
     _p.swapChain.swapChain = swapChain1.query<IDXGISwapChain2>();
@@ -424,7 +449,10 @@ void AtlasEngine::_destroySwapChain()
 void AtlasEngine::_resizeBuffers()
 {
     _b->ReleaseResources();
-    _p.deviceContext->ClearState();
+    if (_p.deviceContext)
+    {
+        _p.deviceContext->ClearState();
+    }
 
     THROW_IF_FAILED(_p.swapChain.swapChain->ResizeBuffers(0, _p.s->targetSize.x, _p.s->targetSize.y, DXGI_FORMAT_UNKNOWN, swapChainFlags));
     _p.swapChain.targetSize = _p.s->targetSize;
@@ -496,7 +524,11 @@ void AtlasEngine::_present()
     {
         // Render() has already issued GPU commands. If we don't Present() now, the GPU's
         // command queue would just fill up and effectively leak memory. Flush() it.
-        _p.deviceContext->Flush();
+        // BackendD3D12 submits its command lists itself.
+        if (_p.deviceContext)
+        {
+            _p.deviceContext->Flush();
+        }
         return;
     }
 

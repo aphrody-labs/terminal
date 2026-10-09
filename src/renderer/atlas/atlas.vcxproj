@@ -17,6 +17,7 @@
     <ClCompile Include="Backend.cpp" />
     <ClCompile Include="BackendD2D.cpp" />
     <ClCompile Include="BackendD3D.cpp" />
+    <ClCompile Include="BackendD3D12.cpp" />
     <ClCompile Include="BuiltinGlyphs.cpp" />
     <ClCompile Include="dwrite_helpers.cpp" />
     <ClCompile Include="DWriteTextAnalysis.cpp" />
@@ -31,6 +32,7 @@
     <ClInclude Include="Backend.h" />
     <ClInclude Include="BackendD2D.h" />
     <ClInclude Include="BackendD3D.h" />
+    <ClInclude Include="BackendD3D12.h" />
     <ClInclude Include="BuiltinGlyphs.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="dwrite_helpers.h" />
@@ -45,17 +47,36 @@
     <FxCompile Include="custom_shader_vs.hlsl">
       <ShaderType>Vertex</ShaderType>
     </FxCompile>
+    <FxCompile Include="custom_shader_ps_d3d12.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>5.1</ShaderModel>
+    </FxCompile>
+    <FxCompile Include="custom_shader_vs_d3d12.hlsl">
+      <ShaderType>Vertex</ShaderType>
+      <ShaderModel>5.1</ShaderModel>
+    </FxCompile>
     <FxCompile Include="dwrite_helpers.hlsl">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="shader_common.hlsl">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </FxCompile>
+    <FxCompile Include="shader_d3d12_rootsig.hlsl">
+      <ExcludedFromBuild>true</ExcludedFromBuild>
+    </FxCompile>
     <FxCompile Include="shader_ps.hlsl">
       <ShaderType>Pixel</ShaderType>
     </FxCompile>
+    <FxCompile Include="shader_ps_d3d12.hlsl">
+      <ShaderType>Pixel</ShaderType>
+      <ShaderModel>5.1</ShaderModel>
+    </FxCompile>
     <FxCompile Include="shader_vs.hlsl">
       <ShaderType>Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="shader_vs_d3d12.hlsl">
+      <ShaderType>Vertex</ShaderType>
+      <ShaderModel>5.1</ShaderModel>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
